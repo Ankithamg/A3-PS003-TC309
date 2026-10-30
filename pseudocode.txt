@@ -1,0 +1,37 @@
+ALGORITHM: Federated Averaging for Traffic Forecasting
+
+Input:
+  K = 5 virtual clients
+  E = local epochs
+  T = communication rounds
+  public time-series traffic data
+  seeds = {0, 1, 2}
+
+Preprocess:
+  1. Split time chronologically into 60% train, 20% validation, 20% test.
+  2. Fit normalization statistics on train timestamps only.
+  3. Create windows: previous 12 observations -> next observation.
+  4. Partition train windows:
+       IID: randomly distribute windows across K clients.
+       Non-IID: assign disjoint groups of sensors to clients.
+
+For each seed:
+  Train centralized GRU on pooled training windows.
+  Evaluate centralized model on test windows.
+
+  For partition in {IID, Non-IID}:
+    Initialize global GRU weights w.
+    For round t = 1..T:
+      For each client k:
+        Send w to client k.
+        Train local model for E epochs on D_k.
+        Receive local weights w_k and sample count n_k.
+      Update global weights:
+        w = sum_k (n_k / sum_j(n_j)) * w_k
+      Count communication:
+        bytes_t = 2 * K * parameter_count * bytes_per_parameter
+      Record validation MAE and cumulative bytes.
+    Evaluate final global model on test windows.
+    Record MAE, RMSE, communication and convergence.
+
+Aggregate metrics over seeds 0, 1, 2.
